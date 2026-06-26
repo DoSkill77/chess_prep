@@ -8,7 +8,10 @@ pub fn fetch_games(
     } else {
         format!("https://lichess.org/api/games/user/{username}?max={limit}")
     };
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("chess-prep/1.0 (https://github.com/DoSkill77/chess_prep)")
+        .timeout(std::time::Duration::from_secs(120))
+        .build()?;
     let response = match client
         .get(&url)
         .header("Accept", "application/x-chess-pgn")
@@ -34,13 +37,14 @@ pub fn fetch_games(
         return Ok(get_fallback_games());
     }
 
-    let content = match response.text() {
-        Ok(text) => text,
+    let bytes = match response.bytes() {
+        Ok(b) => b,
         Err(e) => {
-            eprintln!("   [Warning] Erreur lors du décodage de la réponse : {}. Utilisation de parties de repli...", e);
+            eprintln!("   [Warning] Erreur de lecture de la réponse : {:?}. Utilisation de parties de repli...", e);
             return Ok(get_fallback_games());
         }
     };
+    let content = String::from_utf8_lossy(&bytes).into_owned();
 
     let games: Vec<String> = content
         .split("\n[Event ")

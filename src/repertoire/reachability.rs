@@ -51,7 +51,10 @@ impl Visitor for RepertoryVisitor {
         let fen = Epd::from_position(&current_pos, EnPassantMode::Legal).to_string();
         self.positions.insert(fen.clone());
 
-        let m = san_plus.san.to_move(&current_pos).unwrap();
+        let m = match san_plus.san.to_move(&current_pos) {
+            Ok(m) => m,
+            Err(_) => return ControlFlow::Break(()),
+        };
         let next = {
             let mut pos = current_pos.clone();
             pos.play_unchecked(m);

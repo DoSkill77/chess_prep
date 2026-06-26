@@ -61,7 +61,10 @@ impl Visitor for PgnVisitor {
         _movetext: &mut Self::Movetext,
         san_plus: SanPlus,
     ) -> ControlFlow<Self::Output> {
-        let m = san_plus.san.to_move(&self.position).unwrap();
+        let m = match san_plus.san.to_move(&self.position) {
+            Ok(m) => m,
+            Err(_) => return ControlFlow::Break(()),
+        };
 
         let parent_fen = Epd::from_position(&self.position, EnPassantMode::Legal)
             .to_string();
