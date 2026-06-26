@@ -8,42 +8,31 @@ pub fn fetch_games(
     } else {
         format!("https://lichess.org/api/games/user/{username}?max={limit}")
     };
+    
     let client = reqwest::blocking::Client::builder()
         .user_agent("chess-prep/1.0 (https://github.com/DoSkill77/chess_prep)")
         .timeout(std::time::Duration::from_secs(120))
         .build()?;
-    let response = match client
+
+    let response = client
         .get(&url)
         .header("Accept", "application/x-chess-pgn")
-        .send() {
-            Ok(resp) => resp,
-            Err(e) => {
-                eprintln!("   [Warning] Erreur réseau lors de la récupération Lichess : {}. Utilisation de parties de repli...", e);
-                return Ok(get_fallback_games());
-            }
-        };
+        .send()?;
 
-    if response.status().as_u16() == 429 {
-        eprintln!("   [Warning] API Lichess rate limit (429). Utilisation de parties de repli...");
-        return Ok(get_fallback_games());
+    let status = response.status();
+    if status.as_u16() == 429 {
+        return Err("Limite de requêtes Lichess dépassée (API Rate Limit 429). Veuillez réessayer d'ici quelques minutes.".into());
     }
 
-    if response.status().as_u16() == 404 {
-        return Err(format!("Joueur introuvable : {}", username).into());
+    if status.as_u16() == 404 {
+        return Err(format!("Joueur introuvable sur Lichess : {}", username).into());
     }
 
-    if !response.status().is_success() {
-        eprintln!("   [Warning] Erreur Lichess (Status {}). Utilisation de parties de repli...", response.status());
-        return Ok(get_fallback_games());
+    if !status.is_success() {
+        return Err(format!("Erreur retournée par Lichess (Status HTTP {})", status).into());
     }
 
-    let bytes = match response.bytes() {
-        Ok(b) => b,
-        Err(e) => {
-            eprintln!("   [Warning] Erreur de lecture de la réponse : {:?}. Utilisation de parties de repli...", e);
-            return Ok(get_fallback_games());
-        }
-    };
+    let bytes = response.bytes()?;
     let content = String::from_utf8_lossy(&bytes).into_owned();
 
     let games: Vec<String> = content
@@ -59,13 +48,6 @@ pub fn fetch_games(
         .filter(|s| s.contains("[Event "))
         .collect();
     Ok(games)
-}
-
-fn get_fallback_games() -> Vec<String> {
-    vec![
-        "[Event \"Fallback Game 1\"]\n[White \"DrNykterstein\"]\n[Black \"Opponent\"]\n[Result \"1-0\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Na5 10. Bc2 c5 11. d4 1-0".to_string(),
-        "[Event \"Fallback Game 2\"]\n[White \"Opponent\"]\n[Black \"DrNykterstein\"]\n[Result \"0-1\"]\n\n1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nd7 5. Ng5 Ngf6 6. Bd3 e6 7. N1f3 h6 8. Nxe6 Qe7 9. O-O fxe6 10. Bg6+ Kd8 0-1".to_string(),
-    ]
 }
 
 #[cfg(test)]
