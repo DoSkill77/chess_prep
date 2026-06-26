@@ -1,0 +1,20 @@
+# chess-prep.toml
+profile = "standard"
+stockfish_depth_filter = 15
+stockfish_depth_validate = 22
+max_search_depth = 15
+novelty_threshold = 5
+min_novelty_ply = 6
+min_parent_count = 3
+opponent_games_limit = 500
+max_candidates = 20
+output_dir = "./output"
+analytics_enabled = false
+
+[eval_bounds]
+white_min = 0.0
+black_min = -0.5
+
+[scoring.weights]
+novelty = 0.60
+complexity = 0.40
